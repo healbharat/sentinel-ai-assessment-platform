@@ -40,7 +40,7 @@ service cloud.firestore {
 
     // Jobs Collection
     match /jobs/{jobId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCompany();
     }
 
@@ -82,7 +82,7 @@ service cloud.firestore {
     
     // Companies Collection
     match /companies/{companyId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() || isCompany();
     }
 
