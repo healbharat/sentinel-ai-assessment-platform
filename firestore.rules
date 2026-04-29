@@ -33,9 +33,9 @@ service cloud.firestore {
     match /applications/{applicationId} {
       // Owner or Admin can read
       allow read: if isOwner(resource.data.userId) || isAdmin() || isCompany();
-      // Only Admin or Company can update status, but user can create (apply)
       allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isAdmin() || isCompany();
+      allow update: if isOwner(resource.data.userId) || isAdmin() || isCompany();
+      allow delete: if isAdmin() || isCompany();
     }
 
     // Jobs Collection
@@ -76,7 +76,8 @@ service cloud.firestore {
     // AuditLogs Collection
     match /auditLogs/{logId} {
       allow read: if isAdmin() || isCompany();
-      allow write: if isAdmin() || isCompany();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || isCompany();
     }
     
     // Companies Collection

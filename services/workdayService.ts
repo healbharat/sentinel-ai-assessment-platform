@@ -66,14 +66,15 @@ export interface Application {
   name: string;
   email: string;
   resumeURL: string;
-  status: 'Applied' | 'Shortlisted' | 'Test Assigned' | 'Test Completed' | 'Interview' | 'Rejected' | 'Selected' | 'Onboarding Complete';
-  finalStatus?: 'Offer Sent' | 'Rejected' | 'Selected' | '';
+  status: 'Applied' | 'Shortlisted' | 'Test Assigned' | 'Test Completed' | 'Interview' | 'Document Verification' | 'Rejected' | 'Selected' | 'Onboarding Complete';
+  finalStatus?: 'Offer Sent' | 'Offer Accepted' | 'Offer Rejected' | 'Rejected' | 'Selected' | '';
   appliedAt: any;
   jobTitle?: string;
   companyName?: string;
   assessment?: AssessmentData;
   interview?: InterviewData;
   onboarding?: OnboardingData;
+  offerLetterURL?: string;
 }
 
 export const saveUserProfile = async (userId: string, data: Partial<UserProfile>) => {
@@ -268,6 +269,25 @@ export const assignOnboarding = async (applicationId: string, documentLink: stri
     "onboarding.status": "Pending"
   });
   await createAuditLog(applicationId, 'Onboarding Link Assigned', adminId, { documentLink });
+};
+
+export const sendOfferLetter = async (applicationId: string, offerLink: string, adminId: string = 'admin') => {
+  const docRef = doc(db, 'applications', applicationId);
+  await updateDoc(docRef, {
+    offerLetterURL: offerLink,
+    finalStatus: 'Offer Sent',
+    status: 'Selected'
+  });
+  await createAuditLog(applicationId, 'Offer Letter Sent', adminId, { offerLink });
+};
+
+export const respondToOffer = async (applicationId: string, response: 'Accepted' | 'Rejected') => {
+  const docRef = doc(db, 'applications', applicationId);
+  await updateDoc(docRef, {
+    finalStatus: response === 'Accepted' ? 'Offer Accepted' : 'Offer Rejected',
+    status: response === 'Rejected' ? 'Rejected' : 'Selected'
+  });
+  await createAuditLog(applicationId, `Offer ${response}`, 'student');
 };
 
 export const approveOnboarding = async (applicationId: string, adminId: string = 'admin') => {

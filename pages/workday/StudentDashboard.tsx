@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkdayAuth } from '../../contexts/WorkdayAuthContext';
-import { saveUserProfile, uploadResume, subscribeToApplicationsForStudent, subscribeToAnnouncements, subscribeToTickets, createTicket, Application, Announcement, Ticket } from '../../services/workdayService';
+import { saveUserProfile, uploadResume, subscribeToApplicationsForStudent, subscribeToAnnouncements, subscribeToTickets, createTicket, respondToOffer, Application, Announcement, Ticket } from '../../services/workdayService';
+import { XCircle, Download, ExternalLink, CheckCircle2 } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
     const { user, profile, refreshProfile } = useWorkdayAuth();
@@ -15,6 +16,7 @@ export const StudentDashboard: React.FC = () => {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [ticketMsg, setTicketMsg] = useState('');
+    const [selectedOffer, setSelectedOffer] = useState<Application | null>(null);
 
     useEffect(() => {
         if (profile) {
@@ -36,6 +38,21 @@ export const StudentDashboard: React.FC = () => {
         if(!ticketMsg.trim() || !user) return;
         await createTicket(user.uid, ticketMsg);
         setTicketMsg('');
+    };
+
+    const handleOfferResponse = async (response: 'Accepted' | 'Rejected') => {
+        if (!selectedOffer) return;
+        setLoading(true);
+        try {
+            await respondToOffer(selectedOffer.applicationId!, response);
+            setSelectedOffer(null);
+            setMessage(`Offer ${response} successfully!`);
+        } catch (err) {
+            console.error(err);
+            setMessage('Error processing offer response.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -188,7 +205,9 @@ export const StudentDashboard: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">{app.companyName || 'Unknown Company'}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border shadow-sm transition-all duration-300 hover:scale-105
-                                                ${app.status === 'Applied' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:shadow-yellow-200' : 
+                                                ${app.finalStatus === 'Offer Accepted' ? 'bg-green-600 text-white shadow-sm border-green-700' :
+                                                app.finalStatus === 'Offer Rejected' ? 'bg-red-600 text-white shadow-sm border-red-700' :
+                                                app.status === 'Applied' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:shadow-yellow-200' : 
                                                 app.status === 'Shortlisted' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:shadow-blue-200' : 
                                                 app.status === 'Test Assigned' ? 'bg-purple-50 text-purple-700 border-purple-200 hover:shadow-purple-200 animate-pulse' :
                                                 app.status === 'Test Completed' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:shadow-indigo-200' :
@@ -197,7 +216,10 @@ export const StudentDashboard: React.FC = () => {
                                                 app.status === 'Selected' ? 'bg-green-50 text-green-700 border-green-200 hover:shadow-green-200' :
                                                 app.status === 'Onboarding Complete' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:shadow-emerald-200' :
                                                 'bg-red-50 text-red-700 border-red-200 hover:shadow-red-200'}`}>
-                                                {app.finalStatus === 'Offer Sent' ? 'Offer Sent 🎉' : app.status}
+                                                {app.finalStatus === 'Offer Sent' ? 'Offer Sent 🎉' : 
+                                                 app.finalStatus === 'Offer Accepted' ? 'Accepted ✓' :
+                                                 app.finalStatus === 'Offer Rejected' ? 'Declined ✗' :
+                                                 app.status}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-medium">
@@ -205,7 +227,18 @@ export const StudentDashboard: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             {app.finalStatus === 'Offer Sent' ? (
-                                                <span className="text-green-600 font-bold">Offer Sent 🎉</span>
+                                                <button 
+                                                    onClick={() => setSelectedOffer(app)}
+                                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-xs font-black rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all active:scale-95"
+                                                >
+                                                    Review Offer
+                                                </button>
+                                            ) : app.finalStatus === 'Offer Accepted' ? (
+                                                <span className="text-emerald-600 font-bold flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                                    <CheckCircle2 className="w-4 h-4" /> Accepted
+                                                </span>
+                                            ) : app.finalStatus === 'Offer Rejected' ? (
+                                                <span className="text-red-500 font-bold bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">Offer Rejected</span>
                                             ) : app.status === 'Rejected' ? (
                                                 <span className="text-red-500 font-semibold">Rejected</span>
                                             ) : app.status === 'Test Assigned' && app.assessment?.assigned && app.assessment?.status === 'Pending' ? (
@@ -328,6 +361,76 @@ export const StudentDashboard: React.FC = () => {
                     </form>
                 </div>
             </div>
+            {/* Offer Review Modal */}
+            {selectedOffer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-scale-in">
+                        <div className="bg-indigo-600 p-6 flex justify-between items-center text-white">
+                            <div>
+                                <h3 className="text-xl font-black tracking-tight">Offer Letter Review</h3>
+                                <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-1">{selectedOffer.jobTitle}</p>
+                            </div>
+                            <button onClick={() => setSelectedOffer(null)} className="hover:rotate-90 transition-transform">
+                                <XCircle className="w-8 h-8" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-8 space-y-8">
+                            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <Download className="w-4 h-4 text-indigo-600" /> 1. Download Offer Letter
+                                </h4>
+                                <p className="text-sm text-slate-500 mb-6 font-medium">Please download and read your offer letter carefully before responding.</p>
+                                <a 
+                                    href={selectedOffer.offerLetterURL} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-3 px-6 py-3 bg-white border-2 border-indigo-600 text-indigo-600 rounded-xl font-black text-sm hover:bg-indigo-50 transition-all shadow-sm"
+                                >
+                                    <Download className="w-5 h-5" />
+                                    Download Offer PDF
+                                </a>
+                            </div>
+
+                            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <ExternalLink className="w-4 h-4 text-indigo-600" /> 2. Review Company Policies
+                                </h4>
+                                <p className="text-sm text-slate-500 mb-6 font-medium">By accepting this offer, you agree to the Heal Bharat Services terms and guidelines.</p>
+                                <a 
+                                    href="https://www.healbharatservices.com/#/policies-guidelines" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-3 text-indigo-600 font-black text-sm hover:underline"
+                                >
+                                    View Policies & Guidelines <ExternalLink className="w-4 h-4" />
+                                </a>
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button 
+                                    onClick={() => handleOfferResponse('Accepted')}
+                                    disabled={loading}
+                                    className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {loading ? 'Processing...' : 'Accept Offer'}
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        if(confirm('Are you sure you want to reject this offer? This action cannot be undone.')) {
+                                            handleOfferResponse('Rejected');
+                                        }
+                                    }}
+                                    disabled={loading}
+                                    className="px-8 py-4 bg-white border-2 border-slate-200 text-slate-400 rounded-2xl font-black hover:border-red-200 hover:text-red-600 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWorkdayAuth } from '../../contexts/WorkdayAuthContext';
 import { 
     createJob, getJobs, updateApplicationStatus, 
-    assignAssessment, assignInterview, assignVerification, Job, Application 
+    assignAssessment, assignInterview, assignVerification, sendOfferLetter, Job, Application 
 } from '../../services/workdayService';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -34,7 +34,7 @@ export const CompanyDashboard: React.FC = () => {
 
     // Action State
     const [actioningAppId, setActioningAppId] = useState<string | null>(null);
-    const [actionType, setActionType] = useState<'Test' | 'Interview' | 'Verification' | null>(null);
+    const [actionType, setActionType] = useState<'Test' | 'Interview' | 'Verification' | 'Offer' | null>(null);
     const [actionLink, setActionLink] = useState('');
 
     useEffect(() => {
@@ -113,8 +113,9 @@ export const CompanyDashboard: React.FC = () => {
         } else if (app.status === 'Interview') {
             setActioningAppId(app.applicationId!);
             setActionType('Verification');
-        } else if (app.status === 'Document Verification') {
-            await updateApplicationStatus(app.applicationId!, 'Selected');
+        } else if (app.status === 'Document Verification' || app.status === 'Onboarding Complete' || (app.status === 'Selected' && !app.finalStatus)) {
+            setActioningAppId(app.applicationId!);
+            setActionType('Offer');
         }
     };
 
@@ -128,6 +129,8 @@ export const CompanyDashboard: React.FC = () => {
                 await assignInterview(actioningAppId, actionLink, user?.uid);
             } else if (actionType === 'Verification') {
                 await assignVerification(actioningAppId, actionLink, user?.uid);
+            } else if (actionType === 'Offer') {
+                await sendOfferLetter(actioningAppId, actionLink, user?.uid);
             }
             setActioningAppId(null);
             setActionType(null);
@@ -174,17 +177,29 @@ export const CompanyDashboard: React.FC = () => {
         if (selectedApps.length === 0 || !actionLink || !actionType) return;
         
         setLoading(true);
-        for (const id of selectedApps) {
-            if (actionType === 'Test') {
-                await assignAssessment(id, actionLink, user?.uid);
-            } else {
-                await assignInterview(id, actionLink, user?.uid);
+        try {
+            for (const id of selectedApps) {
+                if (actionType === 'Test') {
+                    await assignAssessment(id, actionLink, user?.uid);
+                } else if (actionType === 'Interview') {
+                    await assignInterview(id, actionLink, user?.uid);
+                } else if (actionType === 'Verification') {
+                    await assignVerification(id, actionLink, user?.uid);
+                } else if (actionType === 'Offer') {
+                    await sendOfferLetter(id, actionLink, user?.uid);
+                }
             }
+            alert(`Successfully processed ${selectedApps.length} candidates!`);
+            setSelectedApps([]);
+            setActionType(null);
+            setActionLink('');
+            setActioningAppId(null);
+        } catch (err) {
+            console.error("Bulk action failed:", err);
+            alert("Failed to process bulk action. Please check your connection and permissions.");
+        } finally {
+            setLoading(false);
         }
-        setSelectedApps([]);
-        setActionType(null);
-        setActionLink('');
-        setLoading(false);
     };
 
     const filteredApps = (jobId: string) => {
@@ -300,6 +315,8 @@ export const CompanyDashboard: React.FC = () => {
                                             <button onClick={() => handleBulkStatusChange('Shortlisted')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs font-bold transition-colors">Shortlist All</button>
                                             <button onClick={() => { setActionType('Test'); setActioningAppId('BULK'); }} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-xs font-bold transition-colors">Assign Test</button>
                                             <button onClick={() => { setActionType('Interview'); setActioningAppId('BULK'); }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-bold transition-colors">Assign Interview</button>
+                                            <button onClick={() => { setActionType('Verification'); setActioningAppId('BULK'); }} className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-xs font-bold transition-colors">Verify Docs</button>
+                                            <button onClick={() => { setActionType('Offer'); setActioningAppId('BULK'); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-bold transition-colors">Send Offers</button>
                                             <button onClick={() => handleBulkStatusChange('Rejected')} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-bold transition-colors">Reject All</button>
                                             <button onClick={() => setSelectedApps([])} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold transition-colors">Cancel</button>
                                         </div>
@@ -397,27 +414,42 @@ export const CompanyDashboard: React.FC = () => {
                                                     ) : (
                                                         <div className="flex flex-col gap-2 min-w-[200px]">
                                                             <div className="flex gap-2">
-                                                                <button 
-                                                                    onClick={() => processNextStep(app, job.jobId!)}
-                                                                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200 flex items-center justify-center gap-2"
-                                                                >
-                                                                    {app.status === 'Applied' ? 'Shortlist Candidate' : 
-                                                                     app.status === 'Shortlisted' ? 'Assign Test' :
-                                                                     app.status === 'Test Assigned' || app.status === 'Test Completed' ? 'Move to Interview' :
-                                                                     app.status === 'Interview' ? 'Verify Documents' :
-                                                                     app.status === 'Document Verification' ? 'Approve & Send Offer' :
-                                                                     'Process Next'}
-                                                                    <ArrowRight className="w-3 h-3" />
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleBulkStatusChange('Rejected')}
-                                                                    className="p-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                                >
-                                                                    <XCircle className="w-5 h-5" />
-                                                                </button>
+                                                                {app.finalStatus !== 'Offer Accepted' && app.finalStatus !== 'Offer Rejected' && (
+                                                                    <button 
+                                                                        onClick={() => processNextStep(app, job.jobId!)}
+                                                                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200 flex items-center justify-center gap-2"
+                                                                    >
+                                                                        {app.status === 'Applied' ? 'Shortlist Candidate' : 
+                                                                         app.status === 'Shortlisted' ? 'Assign Test' :
+                                                                         app.status === 'Test Assigned' || app.status === 'Test Completed' ? 'Move to Interview' :
+                                                                         app.status === 'Interview' ? 'Verify Documents' :
+                                                                         app.status === 'Document Verification' || app.status === 'Onboarding Complete' ? 'Send Offer Letter' :
+                                                                         app.finalStatus === 'Offer Sent' ? 'Update Offer' :
+                                                                         app.status === 'Selected' && !app.finalStatus ? 'Send Offer Letter' :
+                                                                         app.status === 'Selected' ? 'Hiring Complete' :
+                                                                         'Process Next'}
+                                                                        {(app.status !== 'Selected' || (app.status === 'Selected' && !app.finalStatus)) && <ArrowRight className="w-3 h-3" />}
+                                                                    </button>
+                                                                )}
+                                                                {(app.finalStatus === 'Offer Accepted' || app.finalStatus === 'Offer Rejected') && (
+                                                                    <div className="flex-1 px-4 py-2 bg-slate-100 text-slate-500 rounded-xl text-xs font-black flex items-center justify-center gap-2 border border-slate-200">
+                                                                        Hiring Process Complete
+                                                                    </div>
+                                                                )}
+                                                                {app.status !== 'Selected' && app.status !== 'Rejected' && (
+                                                                    <button 
+                                                                        onClick={() => handleBulkStatusChange('Rejected')}
+                                                                        className="p-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-slate-200"
+                                                                    >
+                                                                        <XCircle className="w-5 h-5" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                             <div className="flex justify-between items-center px-1">
                                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                                                    app.finalStatus === 'Offer Accepted' ? 'bg-green-600 text-white shadow-sm' :
+                                                                    app.finalStatus === 'Offer Rejected' ? 'bg-red-600 text-white shadow-sm' :
+                                                                    app.finalStatus === 'Offer Sent' ? 'bg-indigo-600 text-white animate-pulse shadow-md' :
                                                                     app.status === 'Applied' ? 'bg-amber-100 text-amber-700' :
                                                                     app.status === 'Shortlisted' ? 'bg-blue-100 text-blue-700' :
                                                                     app.status === 'Test Assigned' ? 'bg-purple-100 text-purple-700' :
@@ -426,7 +458,10 @@ export const CompanyDashboard: React.FC = () => {
                                                                     app.status === 'Selected' ? 'bg-emerald-100 text-emerald-700' :
                                                                     'bg-slate-100 text-slate-700'
                                                                 }`}>
-                                                                    {app.status}
+                                                                    {app.finalStatus === 'Offer Accepted' ? 'Hired / Offer Accepted' : 
+                                                                     app.finalStatus === 'Offer Sent' ? 'Offer Sent - Pending' : 
+                                                                     app.finalStatus === 'Offer Rejected' ? 'Offer Declined' :
+                                                                     app.status}
                                                                 </span>
                                                                 <button className="text-[10px] font-bold text-slate-400 hover:text-indigo-600">View Details</button>
                                                             </div>

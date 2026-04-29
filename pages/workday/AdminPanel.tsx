@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCompanies, updateCompanyVerification, getAllApplications, getJobs, assignAssessment, updateTestResult, assignInterview, markInterviewResult, assignOnboarding, approveOnboarding, sendOffer, createAnnouncement, getAllTickets, replyToTicket, forceUpdateApplicationStatus, Company, Application, Job, Ticket } from '../../services/workdayService';
+import { getCompanies, updateCompanyVerification, getAllApplications, getJobs, assignAssessment, updateTestResult, assignInterview, markInterviewResult, assignOnboarding, approveOnboarding, sendOffer, sendOfferLetter, createAnnouncement, getAllTickets, replyToTicket, forceUpdateApplicationStatus, Company, Application, Job, Ticket } from '../../services/workdayService';
 
 export const AdminPanel: React.FC = () => {
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -39,7 +39,7 @@ export const AdminPanel: React.FC = () => {
 
     const handleAction = async (appId: string, currentActionType?: string) => {
         const typeToUse = currentActionType || actionType;
-        if (!inputValue && typeToUse !== 'approve_docs' && typeToUse !== 'send_offer' && !typeToUse.startsWith('mark_interview')) return;
+        if (!inputValue && typeToUse !== 'approve_docs' && !typeToUse.startsWith('mark_interview')) return;
         
         switch (typeToUse) {
             case 'assign_test': await assignAssessment(appId, inputValue); break;
@@ -49,7 +49,7 @@ export const AdminPanel: React.FC = () => {
             case 'mark_interview_rejected': await markInterviewResult(appId, 'Rejected'); break;
             case 'assign_onboarding': await assignOnboarding(appId, inputValue); break;
             case 'approve_docs': await approveOnboarding(appId); break;
-            case 'send_offer': await sendOffer(appId); break;
+            case 'send_offer': await sendOfferLetter(appId, inputValue); break;
             case 'force_status': await forceUpdateApplicationStatus(appId, inputValue); break;
         }
         
@@ -207,8 +207,8 @@ export const AdminPanel: React.FC = () => {
                                             <td className="px-6 py-4 text-sm font-medium">
                                                 {activeActionId === app.applicationId ? (
                                                     <div className="flex flex-col space-y-2 max-w-[200px]">
-                                                        {(actionType === 'assign_test' || actionType === 'assign_interview' || actionType === 'assign_onboarding') && (
-                                                            <input type="text" placeholder="Paste Link" value={inputValue} onChange={e => setInputValue(e.target.value)} className="px-2 py-1 text-xs border border-slate-300 rounded" />
+                                                        {(actionType === 'assign_test' || actionType === 'assign_interview' || actionType === 'assign_onboarding' || actionType === 'send_offer') && (
+                                                            <input type="text" placeholder={actionType === 'send_offer' ? "Offer Letter URL" : "Paste Link"} value={inputValue} onChange={e => setInputValue(e.target.value)} className="px-2 py-1 text-xs border border-slate-300 rounded" />
                                                         )}
                                                         {actionType === 'update_score' && (
                                                             <input type="number" placeholder="Enter Score" value={inputValue} onChange={e => setInputValue(e.target.value)} className="px-2 py-1 text-xs border border-slate-300 rounded" />
@@ -254,8 +254,8 @@ export const AdminPanel: React.FC = () => {
                                                         {app.status === 'Selected' && app.onboarding?.assigned && app.onboarding?.status === 'Pending' && (
                                                             <button onClick={() => {handleAction(app.applicationId!, 'approve_docs');}} className="px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-xs hover:bg-emerald-100">Approve Docs</button>
                                                         )}
-                                                        {app.status === 'Onboarding Complete' && app.finalStatus !== 'Offer Sent' && (
-                                                            <button onClick={() => {handleAction(app.applicationId!, 'send_offer');}} className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-xs hover:bg-amber-100 font-bold">Send Offer</button>
+                                                        {(app.status === 'Onboarding Complete' || app.status === 'Selected') && app.finalStatus !== 'Offer Sent' && (
+                                                            <button onClick={() => {setActiveActionId(app.applicationId!); setActionType('send_offer');}} className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-xs hover:bg-amber-100 font-bold">Send Offer</button>
                                                         )}
                                                         <button onClick={() => {setActiveActionId(app.applicationId!); setActionType('force_status');}} className="px-2 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded text-xs hover:bg-slate-100 w-full mt-1">Override Process</button>
                                                     </div>
