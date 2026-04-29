@@ -1,0 +1,8 @@
+{
+  "name": "Sentinel AI Assessment Platform",
+  "description": "Enterprise-grade, zero-cheating online assessment and hiring platform featuring AI proctoring, automated workflows, and advanced analytics.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

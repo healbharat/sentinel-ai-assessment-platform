@@ -1,0 +1,126 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Since we don't have a secure way to check 'admin' role purely in rules without reading the user doc 
+    // (which costs reads), we assume the frontend enforces it, but realistically a real app would use Custom Claims.
+    // For this prompt, we simulate admin access or allow read based on ownership.
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isCompany() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'company';
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Applications Collection
+    match /applications/{applicationId} {
+      // Owner or Admin can read
+      allow read: if isOwner(resource.data.userId) || isAdmin() || isCompany();
+      // Only Admin or Company can update status, but user can create (apply)
+      allow create: if isOwner(request.resource.data.userId);
+      allow update, delete: if isAdmin() || isCompany();
+    }
+
+    // Jobs Collection
+    match /jobs/{jobId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isCompany();
+    }
+
+    // Tickets Collection
+    match /tickets/{ticketId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isAdmin();
+    }
+
+    // Chats Collection
+    match /chats/{chatId} {
+      // applicationId is the chatId, so we check the application doc
+      allow read, write: if isAuthenticated() && (
+        isAdmin() || 
+        get(/databases/$(database)/documents/applications/$(chatId)).data.userId == request.auth.uid
+      );
+      
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && (
+          isAdmin() || 
+          get(/databases/$(database)/documents/applications/$(chatId)).data.userId == request.auth.uid
+        );
+      }
+    }
+
+    // Announcements Collection
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // AuditLogs Collection
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() || isCompany();
+      allow write: if isAdmin() || isCompany();
+    }
+    
+    // Companies Collection
+    match /companies/{companyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isCompany();
+    }
+
+    // Sentinel AI Assessment Collections
+    match /candidates/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /results/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /exams/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /questions/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /invitations/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /task_submissions/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /reviews/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /settings/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /organizations/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /interviews/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /interview_access/{id} {
+      allow read, write: if isAuthenticated();
+    }
+    match /selected_students/{id} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
