@@ -20,15 +20,23 @@ export const JobDetailsPage: React.FC = () => {
     useEffect(() => {
         const fetchDetails = async () => {
             if (!id) return;
-            const fetched = await getJobDetails(id);
-            setJob(fetched);
-            
-            if (user) {
-                const studentApps = await getApplicationsForStudent(user.uid);
-                const applied = studentApps.some(app => app.jobId === id);
-                setHasApplied(applied);
+            setLoading(true);
+            try {
+                const jobPromise = getJobDetails(id);
+                const appsPromise = user ? getApplicationsForStudent(user.uid) : Promise.resolve([]);
+
+                const [fetchedJob, studentApps] = await Promise.all([jobPromise, appsPromise]);
+
+                setJob(fetchedJob);
+                if (user) {
+                    const applied = (studentApps || []).some(app => app.jobId === id);
+                    setHasApplied(applied);
+                }
+            } catch (err) {
+                console.error("Failed to fetch details:", err);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
         fetchDetails();
     }, [id, user]);
