@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkdayAuth } from '../../contexts/WorkdayAuthContext';
 import { saveUserProfile, uploadResume, subscribeToApplicationsForStudent, subscribeToAnnouncements, subscribeToTickets, createTicket, respondToOffer, Application, Announcement, Ticket } from '../../services/workdayService';
-import { XCircle, Download, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { XCircle, Download, ExternalLink, CheckCircle2, MessageCircle, Bell, Send, Calendar, User, Briefcase, ShieldCheck, Rocket, HelpCircle } from 'lucide-react';
 
 export const StudentDashboard: React.FC = () => {
     const { user, profile, refreshProfile } = useWorkdayAuth();
@@ -17,6 +17,12 @@ export const StudentDashboard: React.FC = () => {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [ticketMsg, setTicketMsg] = useState('');
     const [selectedOffer, setSelectedOffer] = useState<Application | null>(null);
+    const [activeSupportTab, setActiveSupportTab] = useState<'tickets' | 'chatbot'>('tickets');
+    const [chatbotMessages, setChatbotMessages] = useState<{sender: 'user' | 'ai', text: string}[]>([
+        {sender: 'ai', text: 'Hello! I am Sentinel AI. How can I help you today? You can ask me about assessments, interviews, or profile updates.'}
+    ]);
+    const [chatbotInput, setChatbotInput] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -38,6 +44,37 @@ export const StudentDashboard: React.FC = () => {
         if(!ticketMsg.trim() || !user) return;
         await createTicket(user.uid, ticketMsg);
         setTicketMsg('');
+    };
+
+    const handleChatbotSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!chatbotInput.trim()) return;
+
+        const userMsg = chatbotInput.trim();
+        setChatbotMessages(prev => [...prev, {sender: 'user', text: userMsg}]);
+        setChatbotInput('');
+        setIsTyping(true);
+
+        // Simulate AI Response
+        setTimeout(() => {
+            let aiResponse = "I'm not sure about that. Would you like to create a support ticket for our human team?";
+            const msg = userMsg.toLowerCase();
+
+            if (msg.includes('assessment') || msg.includes('test')) {
+                aiResponse = "Assessments are assigned by companies. Once assigned, you'll see a 'Start Assessment' button in your Application History.";
+            } else if (msg.includes('interview')) {
+                aiResponse = "Interviews can be scheduled once you are shortlisted. Look for the 'Select Interview Slot' button in your dashboard.";
+            } else if (msg.includes('profile') || msg.includes('resume')) {
+                aiResponse = "You can update your phone, skills, and resume link in the 'My Profile' section at the top of this dashboard.";
+            } else if (msg.includes('offer')) {
+                aiResponse = "If a company sends you an offer, a 'Review Offer' button will appear in your applications table. You can then accept or decline it.";
+            } else if (msg.includes('hello') || msg.includes('hi')) {
+                aiResponse = "Hello! I'm Sentinel AI. I can guide you through the assessment and hiring process. What's on your mind?";
+            }
+
+            setChatbotMessages(prev => [...prev, {sender: 'ai', text: aiResponse}]);
+            setIsTyping(false);
+        }, 1000);
     };
 
     const handleOfferResponse = async (response: 'Accepted' | 'Rejected') => {
@@ -77,10 +114,15 @@ export const StudentDashboard: React.FC = () => {
     };
 
     return (
-        <div className="space-y-10 max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 font-sans">
-            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] rounded-3xl p-8 sm:p-10 border border-slate-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full blur-3xl -mr-32 -mt-32 opacity-70 pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
-                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 mb-8 tracking-tight relative z-10 inline-block">My Profile</h2>
+        <div className="space-y-10 max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 font-sans bg-slate-50/30">
+            <div className="bg-white shadow-premium rounded-[2.5rem] p-8 sm:p-12 border border-slate-100 relative overflow-hidden transition-all duration-500 hover:shadow-2xl group">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/10 via-purple-400/10 to-pink-400/10 rounded-full blur-3xl -mr-48 -mt-48 opacity-70 pointer-events-none group-hover:scale-125 transition-transform duration-1000"></div>
+                <div className="flex items-center gap-4 mb-10 relative z-10">
+                    <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200 animate-float">
+                        <User className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">My Profile</h2>
+                </div>
                 
                 {message && (
                     <div className={`mb-8 p-4 rounded-xl text-sm font-medium border relative z-10 ${message.startsWith('Error') ? 'bg-red-50 text-red-700 border-red-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
@@ -136,47 +178,57 @@ export const StudentDashboard: React.FC = () => {
                 </form>
             </div>
 
-            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] rounded-3xl p-8 sm:p-10 border border-slate-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group">
-                <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-orange-100 to-yellow-100 rounded-full blur-3xl -ml-32 -mt-32 opacity-70 pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
-                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-orange-800 to-slate-900 mb-8 tracking-tight relative z-10 inline-block">Sentinel Actions & Onboarding</h2>
+            <div className="bg-white shadow-premium rounded-[2.5rem] p-8 sm:p-12 border border-slate-100 relative overflow-hidden transition-all duration-500 hover:shadow-2xl group">
+                <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-orange-400/10 via-yellow-400/10 to-red-400/10 rounded-full blur-3xl -ml-48 -mt-48 opacity-70 pointer-events-none group-hover:scale-125 transition-transform duration-1000"></div>
+                <div className="flex items-center gap-4 mb-10 relative z-10">
+                    <div className="w-12 h-12 bg-gradient-to-tr from-orange-500 to-red-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-200 animate-float">
+                        <Rocket className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Sentinel Actions & Onboarding</h2>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10 w-full">
                     <Link to={user ? `/verify-docs/${user.uid}` : '#'} className="block group/card">
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 h-full shadow-sm hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-300 transition-all duration-300 transform group-hover/card:-translate-y-1 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full opacity-50 transition-transform group-hover/card:scale-150 duration-500"></div>
-                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover/card:scale-110 group-hover/card:bg-blue-600 group-hover/card:text-white transition-all duration-300 relative z-10 shadow-sm">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        <div className="bg-white border border-slate-200 rounded-3xl p-8 h-full shadow-premium hover:shadow-2xl hover:border-blue-400 transition-all duration-500 transform group-hover/card:-translate-y-2 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-bl-full opacity-50 transition-transform group-hover/card:scale-150 duration-700"></div>
+                            <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center mb-6 group-hover/card:scale-110 transition-all duration-500 shadow-lg shadow-blue-200">
+                                <ShieldCheck className="w-7 h-7" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover/card:text-blue-700 transition-colors relative z-10">Verify Documents</h3>
-                            <p className="text-sm text-slate-500 relative z-10">Upload your employment documents and track verification status.</p>
+                            <h3 className="text-xl font-black text-slate-900 mb-3 group-hover/card:text-blue-700 transition-colors relative z-10">Verify Documents</h3>
+                            <p className="text-sm text-slate-500 font-medium leading-relaxed relative z-10">Securely upload and manage your employment documents for verification.</p>
                         </div>
                     </Link>
 
                     <Link to="/submit-task" className="block group/card">
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 h-full shadow-sm hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-300 transition-all duration-300 transform group-hover/card:-translate-y-1 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-bl-full opacity-50 transition-transform group-hover/card:scale-150 duration-500"></div>
-                            <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover/card:scale-110 group-hover/card:bg-purple-600 group-hover/card:text-white transition-all duration-300 relative z-10 shadow-sm">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                        <div className="bg-white border border-slate-200 rounded-3xl p-8 h-full shadow-premium hover:shadow-2xl hover:border-purple-400 transition-all duration-500 transform group-hover/card:-translate-y-2 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-bl-full opacity-50 transition-transform group-hover/card:scale-150 duration-700"></div>
+                            <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-pink-600 text-white rounded-2xl flex items-center justify-center mb-6 group-hover/card:scale-110 transition-all duration-500 shadow-lg shadow-purple-200">
+                                <Rocket className="w-7 h-7" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover/card:text-purple-700 transition-colors relative z-10">Submit Interview Tasks</h3>
-                            <p className="text-sm text-slate-500 relative z-10">Complete and deliver technical assignments requested by interviewers.</p>
+                            <h3 className="text-xl font-black text-slate-900 mb-3 group-hover/card:text-purple-700 transition-colors relative z-10">Submit Interview Tasks</h3>
+                            <p className="text-sm text-slate-500 font-medium leading-relaxed relative z-10">Upload and submit your technical assessments directly to recruitment teams.</p>
                         </div>
                     </Link>
 
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 h-full shadow-sm hover:shadow-lg hover:shadow-slate-500/10 hover:border-slate-300 transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden group/card">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-full opacity-50 transition-transform group-hover/card:scale-150 duration-500"></div>
-                        <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center mb-4 group-hover/card:scale-110 group-hover/card:bg-slate-800 group-hover/card:text-white transition-all duration-300 relative z-10 shadow-sm">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <div className="bg-white border border-slate-200 rounded-3xl p-8 h-full shadow-premium hover:shadow-2xl hover:border-amber-400 transition-all duration-500 transform hover:-translate-y-2 relative overflow-hidden group/card">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-bl-full opacity-50 transition-transform group-hover/card:scale-150 duration-700"></div>
+                        <div className="w-14 h-14 bg-gradient-to-tr from-amber-500 to-orange-500 text-white rounded-2xl flex items-center justify-center mb-6 group-hover/card:scale-110 transition-all duration-500 shadow-lg shadow-amber-200">
+                            <Calendar className="w-7 h-7" />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover/card:text-slate-800 transition-colors relative z-10">Assessments & Interviews</h3>
-                        <p className="text-sm text-slate-500 relative z-10">Links for live exams and interviews appear directly in your dashboard.</p>
+                        <h3 className="text-xl font-black text-slate-900 mb-3 group-hover/card:text-amber-700 transition-colors relative z-10">Assessments & Interviews</h3>
+                        <p className="text-sm text-slate-500 font-medium leading-relaxed relative z-10">Stay updated with your scheduled interview slots and live assessment links.</p>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] rounded-3xl p-8 sm:p-10 border border-slate-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group">
-                <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-full blur-3xl -ml-32 -mt-32 opacity-70 pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
-                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-indigo-800 to-slate-900 mb-8 tracking-tight relative z-10 inline-block">Application History</h2>
+            <div className="bg-white shadow-premium rounded-[2.5rem] p-8 sm:p-12 border border-slate-100 relative overflow-hidden transition-all duration-500 hover:shadow-2xl group">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-400/10 via-blue-400/10 to-cyan-400/10 rounded-full blur-3xl -mr-48 -mt-48 opacity-70 pointer-events-none group-hover:scale-125 transition-transform duration-1000"></div>
+                <div className="flex items-center gap-4 mb-10 relative z-10">
+                    <div className="w-12 h-12 bg-gradient-to-tr from-indigo-600 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 animate-float">
+                        <Briefcase className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Application History</h2>
+                </div>
                 
                 {applications.length === 0 ? (
                     <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 relative z-10">
@@ -204,18 +256,18 @@ export const StudentDashboard: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">{app.companyName || 'Unknown Company'}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border shadow-sm transition-all duration-300 hover:scale-105
-                                                ${app.finalStatus === 'Offer Accepted' ? 'bg-green-600 text-white shadow-sm border-green-700' :
-                                                app.finalStatus === 'Offer Rejected' ? 'bg-red-600 text-white shadow-sm border-red-700' :
-                                                app.status === 'Applied' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:shadow-yellow-200' : 
-                                                app.status === 'Shortlisted' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:shadow-blue-200' : 
-                                                app.status === 'Test Assigned' ? 'bg-purple-50 text-purple-700 border-purple-200 hover:shadow-purple-200 animate-pulse' :
-                                                app.status === 'Test Completed' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:shadow-indigo-200' :
-                                                app.status === 'Interview' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:shadow-blue-200 animate-pulse' :
-                                                app.status === 'Document Verification' ? 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:shadow-cyan-200 animate-pulse' :
-                                                app.status === 'Selected' ? 'bg-green-50 text-green-700 border-green-200 hover:shadow-green-200' :
-                                                app.status === 'Onboarding Complete' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:shadow-emerald-200' :
-                                                'bg-red-50 text-red-700 border-red-200 hover:shadow-red-200'}`}>
+                                            <span className={`px-4 py-1.5 inline-flex text-xs leading-5 font-black rounded-xl border shadow-sm transition-all duration-300 hover:scale-105 uppercase tracking-wider
+                                                ${app.finalStatus === 'Offer Accepted' ? 'bg-emerald-500 text-white shadow-emerald-200 border-emerald-600' :
+                                                app.finalStatus === 'Offer Rejected' ? 'bg-rose-500 text-white shadow-rose-200 border-rose-600' :
+                                                app.status === 'Applied' ? 'bg-amber-50 text-amber-700 border-amber-200 shadow-amber-50' : 
+                                                app.status === 'Shortlisted' ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-sky-50' : 
+                                                app.status === 'Test Assigned' ? 'bg-violet-600 text-white border-violet-700 shadow-violet-200 animate-pulse' :
+                                                app.status === 'Test Completed' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                app.status === 'Interview' ? 'bg-blue-600 text-white border-blue-700 shadow-blue-200 animate-pulse' :
+                                                app.status === 'Document Verification' ? 'bg-cyan-600 text-white border-cyan-700 shadow-cyan-200 animate-pulse' :
+                                                app.status === 'Selected' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                app.status === 'Onboarding Complete' ? 'bg-teal-500 text-white border-teal-600 shadow-teal-200' :
+                                                'bg-rose-50 text-rose-700 border-rose-200'}`}>
                                                 {app.finalStatus === 'Offer Sent' ? 'Offer Sent 🎉' : 
                                                  app.finalStatus === 'Offer Accepted' ? 'Accepted ✓' :
                                                  app.finalStatus === 'Offer Rejected' ? 'Declined ✗' :
@@ -286,22 +338,29 @@ export const StudentDashboard: React.FC = () => {
             {/* Support and Announcements Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10 w-full">
                 {/* Announcements */}
-                <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl p-8 border border-slate-100 relative overflow-hidden">
-                    <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
-                        Public Announcements
-                    </h3>
-                    <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="bg-white shadow-premium rounded-[2.5rem] p-8 border border-slate-100 relative overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-500">
+                    <div className="flex items-center gap-4 mb-8">
+                        <div className="w-10 h-10 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
+                            <Bell className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Announcements</h3>
+                    </div>
+                    <div className="flex-1 space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                         {announcements.length === 0 ? (
-                            <p className="text-sm text-slate-500 italic">No announcements at this time.</p>
+                            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                                <Bell className="w-12 h-12 mb-3 opacity-20" />
+                                <p className="text-sm font-medium italic">No announcements at this time.</p>
+                            </div>
                         ) : (
                             announcements.map(ann => (
-                                <div key={ann.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                    <h4 className="font-bold text-slate-800 text-sm">{ann.title}</h4>
-                                    <p className="text-xs text-slate-500 mt-1 mb-2">
-                                        {ann.postedAt?.toDate ? ann.postedAt.toDate().toLocaleDateString() : 'Recent'}
-                                    </p>
-                                    <p className="text-sm text-slate-600">{ann.content}</p>
+                                <div key={ann.id} className="p-5 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-100 shadow-sm hover:border-amber-200 transition-colors group/ann">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h4 className="font-black text-slate-800 text-base group-hover/ann:text-amber-700 transition-colors">{ann.title}</h4>
+                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md uppercase">
+                                            {ann.postedAt?.toDate ? ann.postedAt.toDate().toLocaleDateString() : 'Recent'}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-relaxed">{ann.content}</p>
                                 </div>
                             ))
                         )}
@@ -309,56 +368,135 @@ export const StudentDashboard: React.FC = () => {
                 </div>
 
                 {/* Support Tickets */}
-                <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl p-8 border border-slate-100 relative overflow-hidden flex flex-col">
-                    <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                        Support Tickets
-                    </h3>
-                    
-                    <div className="flex-1 space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar mb-6">
-                        {tickets.length === 0 ? (
-                            <p className="text-sm text-slate-500 italic">You have no active support tickets.</p>
-                        ) : (
-                            tickets.map(ticket => (
-                                <div key={ticket.ticketId} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${ticket.status === 'Open' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-700'}`}>
-                                            {ticket.status}
-                                        </span>
-                                        <span className="text-xs text-slate-400">
-                                            {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleDateString() : ''}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-slate-700 font-medium mb-2">{ticket.message}</p>
-                                    {ticket.reply && (
-                                        <div className="mt-3 p-3 bg-white rounded-lg border border-slate-200">
-                                            <p className="text-xs font-bold text-blue-600 mb-1">Admin Reply:</p>
-                                            <p className="text-sm text-slate-600">{ticket.reply}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    <form onSubmit={handleCreateTicket} className="mt-auto">
-                        <div className="flex gap-2">
-                            <input 
-                                type="text" 
-                                value={ticketMsg} 
-                                onChange={(e) => setTicketMsg(e.target.value)} 
-                                placeholder="Need help? Describe your issue..." 
-                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
+                <div className="bg-white shadow-premium rounded-[2.5rem] p-8 border border-slate-100 relative overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                                <MessageCircle className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Support</h3>
+                        </div>
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
                             <button 
-                                type="submit" 
-                                disabled={!ticketMsg.trim()}
-                                className="px-5 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                                onClick={() => setActiveSupportTab('tickets')}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${activeSupportTab === 'tickets' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                Send
+                                Tickets
+                            </button>
+                            <button 
+                                onClick={() => setActiveSupportTab('chatbot')}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${activeSupportTab === 'chatbot' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                AI Chatbot
                             </button>
                         </div>
-                    </form>
+                    </div>
+
+                    {activeSupportTab === 'tickets' ? (
+                        <>
+                            <div className="flex-1 space-y-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar mb-8">
+                                {tickets.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                                        <HelpCircle className="w-12 h-12 mb-3 opacity-20" />
+                                        <p className="text-sm font-medium italic">You have no active support tickets.</p>
+                                    </div>
+                                ) : (
+                                    tickets.map(ticket => (
+                                        <div key={ticket.ticketId} className="space-y-3">
+                                            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm relative group/ticket">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border shadow-sm
+                                                        ${ticket.status === 'Open' ? 'bg-blue-600 text-white border-blue-700' : 'bg-slate-200 text-slate-700 border-slate-300'}`}>
+                                                        {ticket.status}
+                                                    </span>
+                                                    <div className="flex items-center gap-2 text-slate-400">
+                                                        <Calendar className="w-3 h-3" />
+                                                        <span className="text-[10px] font-bold">
+                                                            {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleDateString() : ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm text-slate-700 font-bold leading-relaxed">{ticket.message}</p>
+                                            </div>
+                                            
+                                            {ticket.reply && (
+                                                <div className="ml-6 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 shadow-sm relative animate-slide-in-right">
+                                                    <div className="absolute -left-3 top-4 w-6 h-6 bg-blue-50 border-l border-t border-blue-100 transform -rotate-45"></div>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <ShieldCheck className="w-4 h-4 text-blue-600" />
+                                                        <p className="text-xs font-black text-blue-700 uppercase tracking-wider">Admin Response</p>
+                                                    </div>
+                                                    <p className="text-sm text-slate-700 leading-relaxed font-medium">{ticket.reply}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            <form onSubmit={handleCreateTicket} className="mt-auto relative">
+                                <div className="flex gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100 transition-all">
+                                    <input 
+                                        type="text" 
+                                        value={ticketMsg} 
+                                        onChange={(e) => setTicketMsg(e.target.value)} 
+                                        placeholder="Describe your issue..." 
+                                        className="flex-1 bg-transparent border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-0 text-slate-700"
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        disabled={!ticketMsg.trim()}
+                                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-black hover:shadow-lg hover:shadow-blue-200 disabled:opacity-50 transition-all flex items-center gap-2 group"
+                                    >
+                                        Send
+                                        <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex-1 space-y-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar mb-8">
+                                {chatbotMessages.map((msg, i) => (
+                                    <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                                        <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm text-sm font-medium leading-relaxed
+                                            ${msg.sender === 'user' 
+                                                ? 'bg-gradient-to-tr from-indigo-600 to-blue-600 text-white rounded-tr-none' 
+                                                : 'bg-slate-50 text-slate-700 border border-slate-100 rounded-tl-none'}`}>
+                                            {msg.text}
+                                        </div>
+                                    </div>
+                                ))}
+                                {isTyping && (
+                                    <div className="flex justify-start animate-pulse">
+                                        <div className="bg-slate-50 text-slate-400 p-3 rounded-2xl text-xs font-bold border border-slate-100">
+                                            Sentinel AI is typing...
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <form onSubmit={handleChatbotSubmit} className="mt-auto relative">
+                                <div className="flex gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-100 transition-all">
+                                    <input 
+                                        type="text" 
+                                        value={chatbotInput} 
+                                        onChange={(e) => setChatbotInput(e.target.value)} 
+                                        placeholder="Ask Sentinel AI something..." 
+                                        className="flex-1 bg-transparent border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-0 text-slate-700"
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        disabled={!chatbotInput.trim() || isTyping}
+                                        className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-black hover:shadow-lg hover:shadow-indigo-200 disabled:opacity-50 transition-all flex items-center gap-2 group"
+                                    >
+                                        Ask AI
+                                        <Rocket className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    )}
                 </div>
             </div>
             {/* Offer Review Modal */}
